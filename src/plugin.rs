@@ -117,7 +117,13 @@ impl DojoResource {
     }
 
     /// Connects to a Starknet account.
-    pub fn connect_account(&mut self, tokio: &TokioRuntime, rpc_url: String, account_addr: Felt, private_key: Felt) {
+    pub fn connect_account(
+        &mut self,
+        tokio: &TokioRuntime,
+        rpc_url: String,
+        account_addr: Felt,
+        private_key: Felt,
+    ) {
         info!("Connecting to Starknet.");
         let task = tokio
             .runtime
@@ -273,8 +279,14 @@ fn check_sn_task(tokio: Res<TokioRuntime>, mut dojo: ResMut<DojoResource>) {
 
     if !dojo.sn.pending_txs.is_empty() && dojo.sn.account.is_some() {
         if let Some(task) = dojo.sn.pending_txs.pop_front() {
-            if let Ok(Ok(result)) = tokio.runtime.block_on(async { task.await }) {
-                info!("Transaction completed: {:#x}", result.transaction_hash);
+            match tokio.runtime.block_on(async { task.await }) {
+                Ok(tx_result) => match tx_result {
+                    Ok(result) => {
+                        info!("Transaction completed: {:#x}", result.transaction_hash);
+                    }
+                    Err(e) => error!("Transaction failed with account error: {:?}", e),
+                },
+                Err(e) => error!("Runtime error executing transaction: {:?}", e),
             }
         }
     }
@@ -287,10 +299,9 @@ async fn connect_to_starknet(
     private_key: Felt,
 ) -> Arc<SingleOwnerAccount<AnyProvider, LocalWallet>> {
     // let rpc_url = Url::parse("http://0.0.0.0:5050").expect("Expecting Starknet RPC URL");
-    let provider =
-        AnyProvider::JsonRpcHttp(JsonRpcClient::new(HttpTransport::new(
-            Url::parse(&rpc_url).expect("Expecting valid Starknet RPC URL"),
-        )));
+    let provider = AnyProvider::JsonRpcHttp(JsonRpcClient::new(HttpTransport::new(
+        Url::parse(&rpc_url).expect("Expecting valid Starknet RPC URL"),
+    )));
 
     let chain_id = provider.chain_id().await.unwrap();
 
@@ -329,7 +340,10 @@ pub async fn connect_predeployed_account(
         .await
         .expect("Failed to fetch predeployed accounts.");
 
-    let result: serde_json::Value = response.json().await.expect("Failed to parse predeployed accounts.");
+    let result: serde_json::Value = response
+        .json()
+        .await
+        .expect("Failed to parse predeployed accounts.");
 
     if let Some(vals) = result.get("result").and_then(|v| v.as_array()) {
         let chain_id = provider.chain_id().await.expect("Failed to get chain id.");

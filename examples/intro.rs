@@ -28,9 +28,9 @@ const KATANA_URL: &str = "http://0.0.0.0:5050";
 // This is hard coded for now, but we should implement a logic to load
 // those data from the Dojo manifest.
 const WORLD_ADDRESS: Felt =
-    Felt::from_hex_unchecked("0x04d9778a74d2c9e6e7e4a24cbe913998a80de217c66ee173a604d06dea5469c3");
+    Felt::from_hex_unchecked("0x07cb61df9ec4bdd30ca1f195bc20ff3c7afd0e45e3a3f156767fe05129fd499b");
 const ACTION_ADDRESS: Felt =
-    Felt::from_hex_unchecked("0x00b056c9813fdc442118bdfead6fda526e5daa5fd7d543304117ed80154ea752");
+    Felt::from_hex_unchecked("0x0693bc04141539bb8608db41662f7512b57e116087c1c7a529eca0ed4c774ad5");
 const SPAWN_SELECTOR: Felt = selector!("spawn");
 const MOVE_SELECTOR: Felt = selector!("move");
 
@@ -98,7 +98,6 @@ fn handle_keyboard_input(
                     selector: SPAWN_SELECTOR,
                     calldata: vec![],
                 }];
-
                 dojo.queue_tx(&tokio, calls);
             }
             KeyCode::KeyS if is_pressed => {
