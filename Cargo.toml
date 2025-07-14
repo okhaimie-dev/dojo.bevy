@@ -5,7 +5,31 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
-bevy = "0.16.0"
+bevy = { version = "0.16.0", default-features = false, features = [
+  "bevy_log",
+  "bevy_state",
+  "serialize",
+  "bevy_asset",
+  "bevy_color",
+  "bevy_pbr",
+  "bevy_render",
+  "bevy_winit",
+  "bevy_window",
+  "x11",
+  "bevy_core_pipeline",
+  "tonemapping_luts",
+  "multi_threaded",
+  "sysinfo_plugin",
+  "bevy_scene",
+  "png",
+  "hdr",
+  "ktx2",
+  "zstd",
+  "bevy_gltf",
+  "bevy_ui",
+  "bevy_text",
+  "bevy_sprite",
+] }
 starknet = "0.16.0"
 url = "2"
 tokio = { version = "1.0", features = ["full"] }
