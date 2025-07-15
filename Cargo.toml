@@ -6,9 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 bevy = { version = "0.16.0", default-features = false, features = [
-  "bevy_log",
-  "multi_threaded",
-  "sysinfo_plugin",
+  "bevy_log"
 ] }
 starknet = "0.16"
 url = "2"
@@ -40,6 +38,8 @@ bevy = { version = "0.16.0", default-features = false, features = [
     "bevy_text",
     "bevy_state",
     "serialize",
+    "multi_threaded",
+    "sysinfo_plugin",
 ] }
 
 # Enable a small amount of optimization in the dev profile.
