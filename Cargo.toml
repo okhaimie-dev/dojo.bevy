@@ -9,7 +9,6 @@ bevy = { version = "0.16.0", default-features = false, features = [
   "bevy_log",
   "bevy_state",
   "serialize",
-  "bevy_asset",
   "multi_threaded",
   "sysinfo_plugin",
 ] }
@@ -25,10 +24,10 @@ serde_json = { version = "1.0", features = [ "arbitrary_precision" ] }
 
 [dev-dependencies]
 bevy = { version = "0.16.0", default-features = false, features = [
+    "bevy_asset",
     "bevy_core_pipeline",
     "bevy_pbr",
     "bevy_render",
-    "bevy_sprite",
     "bevy_winit",
     "bevy_window",
     "x11",
@@ -36,7 +35,6 @@ bevy = { version = "0.16.0", default-features = false, features = [
     "hdr",
     "ktx2",
     "zstd",
-    "bevy_gltf",
     "bevy_color",
     "tonemapping_luts",
     "bevy_scene",
