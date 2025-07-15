@@ -7,8 +7,6 @@ edition = "2024"
 anyhow = "1"
 bevy = { version = "0.16.0", default-features = false, features = [
   "bevy_log",
-  "bevy_state",
-  "serialize",
   "multi_threaded",
   "sysinfo_plugin",
 ] }
@@ -40,6 +38,8 @@ bevy = { version = "0.16.0", default-features = false, features = [
     "bevy_scene",
     "bevy_ui",
     "bevy_text",
+    "bevy_state",
+    "serialize",
 ] }
 
 # Enable a small amount of optimization in the dev profile.
