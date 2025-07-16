@@ -215,7 +215,7 @@ fn on_dojo_events(
                 "di-Position" => {
                     ev_position_updated.write(PositionUpdatedEvent(m.into()));
                 }
-                name if name == "di-Moves" => {}
+                "di-Moves" => {}
                 _ => {
                     warn!("Model not handled: {:?}", m);
                 }
