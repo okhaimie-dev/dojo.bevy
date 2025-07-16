@@ -42,6 +42,11 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends libasound2-dev libudev-dev protobuf-compiler libprotobuf-dev
+
       - name: Install Rust toolchain with clippy
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -50,10 +55,13 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }} # Unified cache key
 
       - name: Run Clippy (Linting)
         run: cargo clippy --tests --examples -- -D warnings
+
+      - name: Run Rustdoc (Documentation Check)
+        run: cargo rustdoc -- -D warnings
 
   test:
     name: Build and Test
