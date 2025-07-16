@@ -45,7 +45,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+          sudo apt-get install --no-install-recommends libasound2-dev libudev-dev protobuf-compiler
 
       - name: Install Rust toolchain with clippy
         uses: dtolnay/rust-toolchain@stable

@@ -202,7 +202,7 @@ fn on_dojo_events(
     for ev in ev_retrieve_entities.read() {
         info!(entity_id = ?ev.entity_id, "Torii update");
 
-        // Felt::ZERO is being emitted once, when the subcription is initialized.
+        // Felt::ZERO is being emitted once, when the subscription is initialized.
         // We don't want to spawn a cube for this.
         if ev.entity_id == Felt::ZERO {
             continue;
