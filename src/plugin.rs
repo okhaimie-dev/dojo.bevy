@@ -77,6 +77,11 @@ pub struct StarknetConnection {
     >,
 }
 
+type SubscriptionMessage = (Felt, Vec<Struct>);
+
+type SubscriptionSender = Option<Arc<Mutex<Sender<SubscriptionMessage>>>>;
+type SubscriptionReceiver = Option<Arc<Mutex<Receiver<SubscriptionMessage>>>>;
+
 /// Torii connection state.
 #[derive(Default)]
 pub struct ToriiConnection {
@@ -85,8 +90,8 @@ pub struct ToriiConnection {
     pub pending_retrieve_entities:
         VecDeque<JoinHandle<Result<RetrieveEntitiesResponse, torii_grpc_client::Error>>>,
     pub subscriptions: Arc<Mutex<HashMap<String, JoinHandle<()>>>>,
-    pub subscription_sender: Option<Arc<Mutex<Sender<(Felt, Vec<Struct>)>>>>,
-    pub subscription_receiver: Option<Arc<Mutex<Receiver<(Felt, Vec<Struct>)>>>>,
+    pub subscription_sender: SubscriptionSender,
+    pub subscription_receiver: SubscriptionReceiver,
 }
 
 /// Dojo resource that embeds Starknet and Torii connection.
