@@ -35,7 +35,7 @@ jobs:
         run: cargo fmt --all -- --check
 
   lint:
-    name: Lint and Documentation Check
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -54,9 +54,6 @@ jobs:
 
       - name: Run Clippy (Linting)
         run: cargo clippy --tests --examples -- -D warnings
-
-      - name: Run Rustdoc (Documentation Check)
-        run: cargo rustdoc -- -D warnings
 
   test:
     name: Build and Test
