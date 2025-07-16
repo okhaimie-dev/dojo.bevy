@@ -34,18 +34,13 @@ jobs:
       - name: Run cargo fmt --check
         run: cargo fmt --all -- --check
 
-  build_and_test:
-    name: Build, Lint, and Test
+  lint:
+    name: Lint and Documentation Check
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends libasound2-dev libudev-dev protobuf-compiler libprotobuf-dev
 
       - name: Install Rust toolchain with clippy
         uses: dtolnay/rust-toolchain@stable
@@ -55,13 +50,34 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }} # Unified cache key
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
       - name: Run Clippy (Linting)
         run: cargo clippy --tests --examples -- -D warnings
 
       - name: Run Rustdoc (Documentation Check)
         run: cargo rustdoc -- -D warnings
+
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends libasound2-dev libudev-dev protobuf-compiler libprotobuf-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
       - name: Run Cargo Tests
         run: cargo test
