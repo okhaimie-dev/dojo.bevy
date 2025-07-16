@@ -34,10 +34,10 @@ jobs:
       - name: Run cargo fmt --check
         run: cargo fmt --all -- --check
 
-  build_and_test: # Combined Lint, Clippy, and Test
+  build_and_test:
     name: Build, Lint, and Test
     runs-on: ubuntu-latest
-    timeout-minutes: 45 # Increased timeout due to more steps
+    timeout-minutes: 45
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends libasound2-dev libudev-dev protobuf-compiler
+          sudo apt-get install --no-install-recommends libasound2-dev libudev-dev protobuf-compiler libprotobuf-dev
 
       - name: Install Rust toolchain with clippy
         uses: dtolnay/rust-toolchain@stable
