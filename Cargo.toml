@@ -10,7 +10,7 @@ bevy = { version = "0.16.0", default-features = false, features = [
 ] }
 starknet = "0.16"
 url = "2"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["rt"] }
 futures = "0.3"
 torii-grpc-client = { git = "https://github.com/dojoengine/torii", rev = "ee8756a" }
 dojo-types = { git = "https://github.com/dojoengine/dojo", rev = "4145801" }

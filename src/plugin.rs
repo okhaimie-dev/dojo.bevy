@@ -8,7 +8,7 @@
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use dojo_types::schema::Struct;
-use futures::StreamExt;
+
 use starknet::accounts::single_owner::SignError;
 use starknet::accounts::{Account, AccountError, ExecutionEncoding, SingleOwnerAccount};
 use starknet::core::types::{BlockId, BlockTag, Call, InvokeTransactionResult};
@@ -59,10 +59,14 @@ pub struct TokioRuntime {
     pub runtime: Runtime,
 }
 
+use tokio::runtime::Builder;
+
 impl Default for TokioRuntime {
     fn default() -> Self {
+        let mut builder = Builder::new_current_thread();
+
         Self {
-            runtime: Runtime::new().expect("Failed to create Tokio runtime"),
+            runtime: builder.build().expect("Failed to create Tokio runtime"),
         }
     }
 }
@@ -117,19 +121,23 @@ impl DojoResource {
     }
 
     /// Connects to a Starknet account.
-    pub fn connect_account(
-        &mut self,
-        tokio: &TokioRuntime,
-        rpc_url: String,
-        account_addr: Felt,
-        private_key: Felt,
-    ) {
+    pub fn connect_account(&mut self, tokio: &TokioRuntime, rpc_url: String, account_addr: Felt, private_key: Felt) {
         info!("Connecting to Starknet.");
-        let task = tokio
-            .runtime
-            .spawn(async move { connect_to_starknet(rpc_url, account_addr, private_key).await });
 
-        self.sn.connecting_task = Some(task);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let task = tokio
+                .runtime
+                .spawn(async move { connect_to_starknet(rpc_url.clone(), account_addr, private_key).await });
+            self.sn.connecting_task = Some(task);
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            // For WASM, we'll use block_on since it's single-threaded anyway
+            let account = tokio.runtime.block_on(connect_to_starknet(rpc_url.clone(), account_addr, private_key));
+            self.sn.account = Some(account);
+        }
     }
 
     pub fn connect_predeployed_account(
@@ -139,11 +147,21 @@ impl DojoResource {
         account_idx: usize,
     ) {
         info!("Connecting to Starknet (predeployed).");
-        let task = tokio
-            .runtime
-            .spawn(async move { connect_predeployed_account(rpc_url, account_idx).await });
 
-        self.sn.connecting_task = Some(task);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let task = tokio
+                .runtime
+                .spawn(async move { connect_predeployed_account(rpc_url.clone(), account_idx).await });
+            self.sn.connecting_task = Some(task);
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            // For WASM, we'll use block_on since it's single-threaded anyway
+            let account = tokio.runtime.block_on(connect_predeployed_account(rpc_url.clone(), account_idx));
+            self.sn.account = Some(account);
+        }
     }
 
     /// Queues a transaction to be sent to the Starknet account.
@@ -154,12 +172,26 @@ impl DojoResource {
     /// way (`check_sn_task`).
     pub fn queue_tx(&mut self, tokio: &TokioRuntime, calls: Vec<Call>) {
         if let Some(account) = self.sn.account.clone() {
-            let task = tokio.runtime.spawn(async move {
-                let tx = account.execute_v3(calls);
-                tx.send().await
-            });
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let task = tokio.runtime.spawn(async move {
+                    let tx = account.execute_v3(calls);
+                    tx.send().await
+                });
+                self.sn.pending_txs.push_back(task);
+            }
 
-            self.sn.pending_txs.push_back(task);
+            #[cfg(target_arch = "wasm32")]
+            {
+                // For WASM, execute synchronously
+                let result = tokio.runtime.block_on(async {
+                    let tx = account.execute_v3(calls);
+                    tx.send().await
+                });
+                if let Ok(result) = result {
+                    info!("Transaction completed: {:#x}", result.transaction_hash);
+                }
+            }
         } else {
             warn!("No Starknet account initialized, skipping transaction.");
         }
@@ -173,12 +205,27 @@ impl DojoResource {
     /// to send, and will emit an event when a query response is available.
     pub fn queue_retrieve_entities(&mut self, tokio: &TokioRuntime, query: ToriiQuery) {
         if let Some(client) = self.torii.client.clone() {
-            let task = tokio.runtime.spawn(async move {
-                let mut client = client.lock().await;
-                client.retrieve_entities(query).await
-            });
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let task = tokio.runtime.spawn(async move {
+                    let mut client = client.lock().await;
+                    client.retrieve_entities(query).await
+                });
+                self.torii.pending_retrieve_entities.push_back(task);
+            }
 
-            self.torii.pending_retrieve_entities.push_back(task);
+            #[cfg(target_arch = "wasm32")]
+            {
+                // For WASM, execute synchronously
+                let result = tokio.runtime.block_on(async {
+                    let mut client = client.lock().await;
+                    client.retrieve_entities(query).await
+                });
+                // Note: In WASM, we can't emit events from here, so this is a limitation
+                if let Ok(response) = result {
+                    debug!("Retrieve entities response: {:?}", response);
+                }
+            }
         } else {
             warn!("No Torii client initialized, skipping query.");
         }
@@ -192,28 +239,38 @@ impl DojoResource {
     /// reading the `DojoEntityUpdated` event.
     pub fn subscribe_entities(&mut self, tokio: &TokioRuntime, id: String, clause: Option<Clause>) {
         if let Some(client) = self.torii.client.clone() {
-            let sender = self.torii.subscription_sender.clone();
-            let task = tokio.runtime.spawn(async move {
-                let mut subscription = client
-                    .lock()
-                    .await
-                    .subscribe_entities(clause)
-                    .await
-                    .expect("Failed to subscribe");
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let sender = self.torii.subscription_sender.clone();
+                let task = tokio.runtime.spawn(async move {
+                    let mut subscription = client
+                        .lock()
+                        .await
+                        .subscribe_entities(clause)
+                        .await
+                        .expect("Failed to subscribe");
 
-                while let Some(Ok((n, e))) = subscription.next().await {
-                    debug!("Torii subscribe entities update: {} {:?}", n, e);
-                    if let Some(ref sender) = sender {
-                        let _ = sender.lock().await.send((e.hashed_keys, e.models)).await;
+                    while let Some(Ok((n, e))) = subscription.next().await {
+                        debug!("Torii subscribe entities update: {} {:?}", n, e);
+                        if let Some(ref sender) = sender {
+                            let _ = sender.lock().await.send((e.hashed_keys, e.models)).await;
+                        }
                     }
-                }
-            });
+                });
 
-            // If the id already exists, we should replace the existing one.
-            tokio.runtime.block_on(async {
-                let mut subscriptions = self.torii.subscriptions.lock().await;
-                subscriptions.insert(id, task);
-            });
+                // If the id already exists, we should replace the existing one.
+                tokio.runtime.block_on(async {
+                    let mut subscriptions = self.torii.subscriptions.lock().await;
+                    subscriptions.insert(id, task);
+                });
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                // For WASM, subscriptions are not supported due to Send constraints
+                let _ = (client, tokio, id, clause); // Suppress unused variable warnings
+                warn!("Entity subscriptions are not supported in WASM due to Send constraints");
+            }
         } else {
             warn!("No Torii client initialized, skipping subscription.");
         }
@@ -279,14 +336,8 @@ fn check_sn_task(tokio: Res<TokioRuntime>, mut dojo: ResMut<DojoResource>) {
 
     if !dojo.sn.pending_txs.is_empty() && dojo.sn.account.is_some() {
         if let Some(task) = dojo.sn.pending_txs.pop_front() {
-            match tokio.runtime.block_on(async { task.await }) {
-                Ok(tx_result) => match tx_result {
-                    Ok(result) => {
-                        info!("Transaction completed: {:#x}", result.transaction_hash);
-                    }
-                    Err(e) => error!("Transaction failed with account error: {:?}", e),
-                },
-                Err(e) => error!("Runtime error executing transaction: {:?}", e),
+            if let Ok(Ok(result)) = tokio.runtime.block_on(async { task.await }) {
+                info!("Transaction completed: {:#x}", result.transaction_hash);
             }
         }
     }
@@ -299,9 +350,10 @@ async fn connect_to_starknet(
     private_key: Felt,
 ) -> Arc<SingleOwnerAccount<AnyProvider, LocalWallet>> {
     // let rpc_url = Url::parse("http://0.0.0.0:5050").expect("Expecting Starknet RPC URL");
-    let provider = AnyProvider::JsonRpcHttp(JsonRpcClient::new(HttpTransport::new(
-        Url::parse(&rpc_url).expect("Expecting valid Starknet RPC URL"),
-    )));
+    let provider =
+        AnyProvider::JsonRpcHttp(JsonRpcClient::new(HttpTransport::new(
+            Url::parse(&rpc_url).expect("Expecting valid Starknet RPC URL"),
+        )));
 
     let chain_id = provider.chain_id().await.unwrap();
 
@@ -340,10 +392,7 @@ pub async fn connect_predeployed_account(
         .await
         .expect("Failed to fetch predeployed accounts.");
 
-    let result: serde_json::Value = response
-        .json()
-        .await
-        .expect("Failed to parse predeployed accounts.");
+    let result: serde_json::Value = response.json().await.expect("Failed to parse predeployed accounts.");
 
     if let Some(vals) = result.get("result").and_then(|v| v.as_array()) {
         let chain_id = provider.chain_id().await.expect("Failed to get chain id.");
